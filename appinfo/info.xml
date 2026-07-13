@@ -18,7 +18,7 @@ which is a wrapper for the command line program [Tesseract OCR](https://github.c
 Tesseract must be installed locally, and configured.
 	]]>
 	</description>
-	<version>34.0.1</version>
+	<version>34.0.2</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Maxence Lange</author>
 	<namespace>Files_FullTextSearch_Tesseract</namespace>

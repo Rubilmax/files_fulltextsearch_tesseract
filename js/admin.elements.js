@@ -19,6 +19,7 @@ var fts_tesseract_elements = {
 	tesseract_threads: null,
 	tesseract_pdf: null,
 	tesseract_pdf_limit: null,
+	settingsSaveTimer: null,
 
 	init: function () {
 		fts_tesseract_elements.tesseract_div = $('#files_ocr-tesseract');
@@ -31,23 +32,44 @@ var fts_tesseract_elements = {
 		fts_tesseract_elements.tesseract_pdf = $('#tesseract_pdf');
 		fts_tesseract_elements.tesseract_pdf_limit = $('#tesseract_pdf_limit');
 
-		fts_tesseract_elements.tesseract_ocr.on('change', fts_tesseract_elements.updateSettings);
-		fts_tesseract_elements.tesseract_psm.on('change', fts_tesseract_elements.updateSettings);
-		fts_tesseract_elements.tesseract_lang.on('change', fts_tesseract_elements.updateSettings);
-		fts_tesseract_elements.tesseract_cpu_budget.on(
-			'change', fts_tesseract_elements.updateSettings
+		var valueInputs = fts_tesseract_elements.tesseract_div.find(
+			'input[type="number"], input[type="text"]'
 		);
-		fts_tesseract_elements.tesseract_parallel_jobs.on(
-			'change', fts_tesseract_elements.updateSettings
+		valueInputs.on('input', fts_tesseract_elements.scheduleSettingsUpdate);
+		valueInputs.on('change', fts_tesseract_elements.flushScheduledSettingsUpdate);
+
+		fts_tesseract_elements.tesseract_div.find('input[type="checkbox"]').on(
+			'change',
+			fts_tesseract_elements.updateSettings
 		);
-		fts_tesseract_elements.tesseract_threads.on('change', fts_tesseract_elements.updateSettings);
-		fts_tesseract_elements.tesseract_pdf.on('change', fts_tesseract_elements.updateSettings);
-		fts_tesseract_elements.tesseract_pdf_limit.on('change', fts_tesseract_elements.updateSettings);
+	},
+
+
+	scheduleSettingsUpdate: function () {
+		fts_admin_settings.tagSettingsAsNotSaved($(this));
+		clearTimeout(fts_tesseract_elements.settingsSaveTimer);
+		fts_tesseract_elements.settingsSaveTimer = setTimeout(function () {
+			fts_tesseract_elements.settingsSaveTimer = null;
+			fts_tesseract_settings.saveSettings();
+		}, 500);
+	},
+
+
+	flushScheduledSettingsUpdate: function () {
+		if (fts_tesseract_elements.settingsSaveTimer === null) {
+			return;
+		}
+
+		clearTimeout(fts_tesseract_elements.settingsSaveTimer);
+		fts_tesseract_elements.settingsSaveTimer = null;
+		fts_tesseract_settings.saveSettings();
 	},
 
 
 	updateSettings: function () {
 		fts_admin_settings.tagSettingsAsNotSaved($(this));
+		clearTimeout(fts_tesseract_elements.settingsSaveTimer);
+		fts_tesseract_elements.settingsSaveTimer = null;
 		fts_tesseract_settings.saveSettings();
 	}
 

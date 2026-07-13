@@ -4,6 +4,12 @@
 -->
 # Changelog
 
+## 34.0.2
+
+### Fixed
+
+- Save number and text settings when their value changes, including spinner-button updates.
+
 ## 34.0.1
 
 ### Changed
