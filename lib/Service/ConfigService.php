@@ -23,7 +23,6 @@ class ConfigService {
 	public const TESSERACT_CPU_BUDGET = 'tesseract_cpu_budget';
 	public const TESSERACT_PARALLEL_JOBS = 'tesseract_parallel_jobs';
 	public const TESSERACT_THREADS = 'tesseract_threads';
-	public const TESSERACT_PDF_SKIP_TEXT = 'tesseract_pdf_skip_text';
 
 	private const MAX_CPU_BUDGET = 256;
 	private const DEFAULT_PSM = 4;
@@ -37,7 +36,7 @@ class ConfigService {
 
 	public function __construct(private IAppConfig $appConfig) {
 		$this->defaults = [
-			self::TESSERACT_ENABLED => '0',
+			self::TESSERACT_ENABLED => '1',
 			self::TESSERACT_PSM => (string)self::DEFAULT_PSM,
 			self::TESSERACT_LANG => 'eng',
 			self::TESSERACT_PDF => '0',
@@ -45,7 +44,6 @@ class ConfigService {
 			self::TESSERACT_CPU_BUDGET => (string)$this->getDefaultCpuBudget(),
 			self::TESSERACT_PARALLEL_JOBS => (string)$this->getDefaultParallelJobs(),
 			self::TESSERACT_THREADS => '1',
-			self::TESSERACT_PDF_SKIP_TEXT => '1',
 		];
 	}
 
@@ -66,7 +64,6 @@ class ConfigService {
 			'cpu_budget' => $this->getAppValue(self::TESSERACT_CPU_BUDGET),
 			'parallel_jobs' => $this->getAppValue(self::TESSERACT_PARALLEL_JOBS),
 			'threads' => $this->getAppValue(self::TESSERACT_THREADS),
-			'pdf_skip_text' => $this->getAppValue(self::TESSERACT_PDF_SKIP_TEXT),
 		];
 		$event->setArgument('config', $config);
 	}
@@ -106,11 +103,6 @@ class ConfigService {
 
 	public function isPdfEnabled(): bool {
 		return $this->optionIsSelected(self::TESSERACT_PDF);
-	}
-
-
-	public function shouldSkipPdfText(): bool {
-		return $this->optionIsSelected(self::TESSERACT_PDF_SKIP_TEXT);
 	}
 
 
@@ -213,8 +205,7 @@ class ConfigService {
 	private function normalizeValue(string $key, mixed $value): string {
 		return match ($key) {
 			self::TESSERACT_ENABLED,
-			self::TESSERACT_PDF,
-			self::TESSERACT_PDF_SKIP_TEXT => $this->normalizeBoolean($value),
+			self::TESSERACT_PDF => $this->normalizeBoolean($value),
 			self::TESSERACT_PSM => (string)$this->normalizeInteger(
 				$value,
 				0,

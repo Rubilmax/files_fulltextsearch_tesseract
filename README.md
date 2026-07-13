@@ -18,10 +18,9 @@ This Nextcloud app extracts searchable text from images and image-bearing PDF pa
 - Tesseract available as `tesseract` in the web/cron user's `PATH`.
 - ImageMagick with PDF reading enabled and a PDF delegate such as Ghostscript for PDF OCR.
 - The `fulltextsearch`, `files_fulltextsearch`, and a full-text search platform app.
-- Optional but recommended: Poppler's `pdfinfo`, `pdftotext`, `pdfimages`, and `pdftoppm`. They let
-  the app avoid initializing Imagick when a PDF already has useful text, skip pages without images,
-  and batch-render only the remaining pages as grayscale OCR input. Without `pdftoppm`, PDF page
-  rendering falls back to Imagick.
+- Poppler's `pdfimages` is required for PDF OCR so the app can select pages with meaningful raster
+  images. Poppler's `pdfinfo` and `pdftoppm` are recommended for faster page counting and grayscale
+  batch rendering; without them, those operations fall back to Imagick.
 
 Download the required Tesseract language data from
 [tessdata](https://github.com/tesseract-ocr/tessdata) and install it in the location expected by
@@ -50,6 +49,11 @@ php occ upgrade
 
 Open **Administration settings → Full text search → Files - Tesseract OCR**.
 
+On a first install, OCR is enabled and PDF OCR remains disabled until an administrator enables it.
+The settings page starts with page segmentation mode `4`, English (`eng`), one Tesseract thread per
+job, and no PDF page limit. The shared CPU budget defaults to half of the available logical CPUs and
+the parallel-job limit initially matches that budget.
+
 By default, all OCR jobs share a CPU budget of half the available logical CPUs, and Tesseract uses
 one thread per file. Container CPU quotas are taken into account when available. The effective job
 and thread limits are always constrained so their product does not exceed the shared CPU budget.
@@ -59,7 +63,8 @@ available.
 For multi-page PDFs, candidate pages are passed to one Tesseract process so language data is loaded
 once per document instead of once per page. Small decorative images and transparency masks do not
 make a page an OCR candidate; the app uses raster dimensions and effective PDF image resolution to
-identify pages likely to contain scanned text.
+identify pages likely to contain scanned text. An existing text layer does not prevent OCR when a
+page contains a meaningful raster image.
 
 After changing OCR settings, reset or reindex existing documents with the commands provided by the
 Full text search app so their indexed text reflects the new configuration.

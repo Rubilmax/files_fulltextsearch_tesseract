@@ -10,12 +10,10 @@ namespace OCA\Files_FullTextSearch_Tesseract\Service;
 
 
 /**
- * Uses optional Poppler tools to avoid rasterizing PDF pages that do not need OCR.
+ * Uses Poppler tools to identify PDF pages containing meaningful raster images.
  */
 class PdfContentInspector {
 
-	private const MIN_TEXT_CHARACTERS = 50;
-	private const MIN_TEXT_WORDS = 8;
 	private const MIN_IMAGE_PIXELS = 250000;
 	private const MIN_DISPLAYED_IMAGE_AREA_SQUARE_INCHES = 6.0;
 	private const MIN_FALLBACK_IMAGE_PIXELS = 1000000;
@@ -46,38 +44,10 @@ class PdfContentInspector {
 	 * @param string $path
 	 * @param int $pages
 	 *
-	 * @return array<int, string>|null One-indexed page text, or null when inspection is unavailable.
-	 */
-	public function extractTextByPage(string $path, int $pages): ?array {
-		if ($pages < 1) {
-			return [];
-		}
-
-		$output = $this->commandRunner->run(
-			['pdftotext', '-f', '1', '-l', (string)$pages, '-enc', 'UTF-8', '-q', $path, '-']
-		);
-		if ($output === null) {
-			return null;
-		}
-
-		$textByPage = [];
-		$pageOutput = explode("\f", $output);
-		for ($page = 1; $page <= $pages; $page++) {
-			$textByPage[$page] = trim($pageOutput[$page - 1] ?? '');
-		}
-
-		return $textByPage;
-	}
-
-
-	/**
-	 * @param string $path
-	 * @param int $pages
-	 *
 	 * Ignore masks and small decorative images. Prefer physical image coverage calculated from
 	 * Poppler's effective DPI, with a conservative pixel-size fallback for malformed metadata.
 	 *
-	 * @return array<int, bool>|null One-indexed pages likely to contain scanned text, or null when unavailable.
+	 * @return array<int, bool>|null One-indexed pages containing meaningful raster images, or null when unavailable.
 	 */
 	public function findOcrCandidatePages(string $path, int $pages): ?array {
 		if ($pages < 1) {
@@ -176,23 +146,5 @@ class PdfContentInspector {
 		return is_finite($float) && $float > 0 ? $float : null;
 	}
 
-
-	/**
-	 * Avoid treating a page number, header, or watermark as a complete text layer.
-	 *
-	 * @param string $text
-	 *
-	 * @return bool
-	 */
-	public function hasUsefulText(string $text): bool {
-		$words = [];
-		$wordCount = preg_match_all('/[\p{L}\p{N}]+/u', $text, $words);
-		$characterCount = preg_match_all('/[\p{L}\p{N}]/u', $text);
-
-		return $wordCount !== false
-			&& $wordCount >= self::MIN_TEXT_WORDS
-			&& $characterCount !== false
-			&& $characterCount >= self::MIN_TEXT_CHARACTERS;
-	}
 
 }

@@ -3,7 +3,7 @@
         'name' => 'nextcloud/files_fulltextsearch_tesseract-ocr',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'ad0a97809614bcd383006d9d514a0eab2644e2a5',
+        'reference' => 'e4e9c9490d0a483071c5d4cc27929e532f29bcdd',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'nextcloud/files_fulltextsearch_tesseract-ocr' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'ad0a97809614bcd383006d9d514a0eab2644e2a5',
+            'reference' => 'e4e9c9490d0a483071c5d4cc27929e532f29bcdd',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

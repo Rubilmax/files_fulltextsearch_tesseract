@@ -35,9 +35,6 @@ var fts_tesseract_settings = {
 		fts_tesseract_elements.tesseract_threads.val(result.tesseract_threads);
 		fts_tesseract_elements.tesseract_pdf.prop('checked', (result.tesseract_pdf === '1'));
 		fts_tesseract_elements.tesseract_pdf_limit.val(result.tesseract_pdf_limit);
-		fts_tesseract_elements.tesseract_pdf_skip_text.prop(
-			'checked', (result.tesseract_pdf_skip_text === '1')
-		);
 
 		fts_admin_settings.tagSettingsAsSaved(fts_tesseract_elements.tesseract_div);
 
@@ -68,10 +65,7 @@ var fts_tesseract_settings = {
 			tesseract_parallel_jobs: fts_tesseract_elements.tesseract_parallel_jobs.val(),
 			tesseract_threads: fts_tesseract_elements.tesseract_threads.val(),
 			tesseract_pdf: (fts_tesseract_elements.tesseract_pdf.is(':checked')) ? 1 : 0,
-			tesseract_pdf_limit: fts_tesseract_elements.tesseract_pdf_limit.val(),
-			tesseract_pdf_skip_text: (
-				fts_tesseract_elements.tesseract_pdf_skip_text.is(':checked')
-			) ? 1 : 0
+			tesseract_pdf_limit: fts_tesseract_elements.tesseract_pdf_limit.val()
 		};
 	},
 

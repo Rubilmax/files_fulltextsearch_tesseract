@@ -257,45 +257,24 @@ class TesseractService {
 			return '';
 		}
 
-		$textByPage = $this->pdfContentInspector->extractTextByPage($path, $pages);
-		$skipPagesWithText = $this->configService->shouldSkipPdfText();
-		if ($skipPagesWithText && $this->allPagesHaveUsefulText($textByPage, $pages)) {
-			$this->logger->debug('Skipping PDF image inspection and OCR; every page has useful text');
-
-			return $this->combinePdfContent($textByPage, [], $pages);
-		}
-
 		$ocrCandidatePages = $this->pdfContentInspector->findOcrCandidatePages($path, $pages);
-		$pagesToOcr = [];
+		if ($ocrCandidatePages === null) {
+			$this->logger->debug(
+				'Skipping PDF OCR because meaningful raster image inspection is unavailable'
+			);
 
-		for ($i = 1; $i <= $pages; $i++) {
-			$pageText = $textByPage[$i] ?? '';
-
-			if ($ocrCandidatePages !== null && !isset($ocrCandidatePages[$i])) {
-				$this->logger->debug(
-					'Skipping OCR for PDF page without a meaningful raster image',
-					['page' => $i]
-				);
-				continue;
-			}
-
-			if ($skipPagesWithText && $this->pdfContentInspector->hasUsefulText($pageText)) {
-				$this->logger->debug(
-					'Skipping OCR for PDF page with an existing text layer',
-					['page' => $i]
-				);
-				continue;
-			}
-
-			$pagesToOcr[] = $i;
+			return '';
 		}
 
+		$pagesToOcr = array_keys($ocrCandidatePages);
 		if ($pagesToOcr === []) {
-			return $this->combinePdfContent($textByPage, [], $pages);
+			$this->logger->debug('Skipping PDF OCR because no meaningful raster image was found');
+
+			return '';
 		}
 
 		return $this->localFileService->runWithTemporaryFolder(
-			function (string $temporaryFolder) use ($path, $pages, $pagesToOcr, $textByPage): string {
+			function (string $temporaryFolder) use ($path, $pagesToOcr): string {
 				$renderedPages = $this->pdfPageRenderer->render(
 					$path,
 					$pagesToOcr,
@@ -319,7 +298,12 @@ class TesseractService {
 					array_keys($renderedPages)
 				);
 
-				return $this->combinePdfContent($textByPage, $ocrByPage, $pages);
+				$pageContent = array_filter(
+					array_map('trim', array_values($ocrByPage)),
+					static fn (string $content): bool => $content !== ''
+				);
+
+				return implode("\n", $pageContent);
 			}
 		);
 	}
@@ -414,24 +398,6 @@ class TesseractService {
 
 
 	/**
-	 * @param array<int, string>|null $textByPage
-	 */
-	private function allPagesHaveUsefulText(?array $textByPage, int $pages): bool {
-		if ($textByPage === null) {
-			return false;
-		}
-
-		for ($page = 1; $page <= $pages; $page++) {
-			if (!$this->pdfContentInspector->hasUsefulText($textByPage[$page] ?? '')) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-
-	/**
 	 * @param list<int> $pages
 	 *
 	 * @return array<int, string>
@@ -457,28 +423,6 @@ class TesseractService {
 		}
 
 		return $result;
-	}
-
-
-	/**
-	 * @param array<int, string>|null $textByPage
-	 * @param array<int, string> $ocrByPage
-	 */
-	private function combinePdfContent(?array $textByPage, array $ocrByPage, int $pages): string {
-		$content = [];
-		for ($page = 1; $page <= $pages; $page++) {
-			$pageText = trim($textByPage[$page] ?? '');
-			if ($pageText !== '') {
-				$content[] = $pageText;
-			}
-
-			$ocrText = trim($ocrByPage[$page] ?? '');
-			if ($ocrText !== '') {
-				$content[] = $ocrText;
-			}
-		}
-
-		return implode("\n", $content);
 	}
 
 

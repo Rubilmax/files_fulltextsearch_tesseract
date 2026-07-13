@@ -4,6 +4,19 @@
 -->
 # Changelog
 
+## 34.0.1
+
+### Changed
+
+- Enable OCR by default on a first install.
+- Select PDF pages for OCR solely by meaningful raster images, regardless of any existing text
+  layer; require Poppler's `pdfimages` for this inspection.
+- Remove PDF text-layer inspection and its administrator setting.
+
+### Fixed
+
+- Populate the administration form immediately with effective defaults and saved values.
+
 ## 34.0.0
 
 ### Added

@@ -39,19 +39,6 @@ class PdfContentInspectorTest extends TestCase {
 	}
 
 
-	public function testExtractsTextByPage(): void {
-		$commandRunner = $this->createMock(ExternalCommandRunner::class);
-		$commandRunner->method('run')->willReturn("first page\fsecond page\f");
-
-		$inspector = new PdfContentInspector($commandRunner);
-
-		self::assertSame(
-			[1 => 'first page', 2 => 'second page'],
-			$inspector->extractTextByPage('/tmp/document.pdf', 2)
-		);
-	}
-
-
 	public function testFindsPagesWithMeaningfulRasterImages(): void {
 		$commandRunner = $this->createMock(ExternalCommandRunner::class);
 		$commandRunner->method('run')->willReturn(
@@ -78,12 +65,11 @@ class PdfContentInspectorTest extends TestCase {
 	}
 
 
-	public function testUsefulTextRequiresEnoughUnicodeWordsAndCharacters(): void {
-		$inspector = new PdfContentInspector($this->createMock(ExternalCommandRunner::class));
+	public function testReturnsNullWhenRasterInspectionIsUnavailable(): void {
+		$commandRunner = $this->createMock(ExternalCommandRunner::class);
+		$commandRunner->method('run')->willReturn(null);
+		$inspector = new PdfContentInspector($commandRunner);
 
-		self::assertFalse($inspector->hasUsefulText('Page 1'));
-		self::assertTrue($inspector->hasUsefulText(
-			'Éléments utiles répétés plusieurs fois pour fournir une couche textuelle réellement complète.'
-		));
+		self::assertNull($inspector->findOcrCandidatePages('/tmp/document.pdf', 1));
 	}
 }

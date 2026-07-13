@@ -52,4 +52,69 @@ class TesseractServiceTest extends TestCase {
 
 		self::assertSame($expected, $service->parsedMimeType($mimeType, $extension));
 	}
+
+
+	public function testPdfOcrStopsWhenRasterInspectionIsUnavailable(): void {
+		$config = $this->createMock(ConfigService::class);
+		$config->method('getPdfPageLimit')->willReturn(0);
+		$localFiles = $this->createMock(LocalFileService::class);
+		$localFiles->expects(self::never())->method('runWithTemporaryFolder');
+		$inspector = $this->createMock(PdfContentInspector::class);
+		$inspector->method('getPageCount')->willReturn(2);
+		$inspector->method('findOcrCandidatePages')->willReturn(null);
+
+		$service = new TesseractService(
+			$config,
+			$localFiles,
+			$this->createMock(OcrJobLimiter::class),
+			$inspector,
+			$this->createMock(PdfPageRenderer::class),
+			$this->createMock(ProcessPriorityService::class),
+			$this->createMock(LoggerInterface::class)
+		);
+
+		self::assertSame('', $this->invokePdfOcr($service, '/tmp/document.pdf'));
+	}
+
+
+	public function testPdfOcrRendersOnlyMeaningfulRasterCandidates(): void {
+		$config = $this->createMock(ConfigService::class);
+		$config->method('getPdfPageLimit')->willReturn(0);
+		$localFiles = $this->createMock(LocalFileService::class);
+		$localFiles->expects(self::once())
+			->method('runWithTemporaryFolder')
+			->willReturnCallback(
+				static fn (callable $callback): mixed => $callback('/tmp/ocr-work')
+			);
+		$inspector = $this->createMock(PdfContentInspector::class);
+		$inspector->method('getPageCount')->willReturn(3);
+		$inspector->expects(self::once())
+			->method('findOcrCandidatePages')
+			->with('/tmp/document.pdf', 3)
+			->willReturn([2 => true]);
+		$renderer = $this->createMock(PdfPageRenderer::class);
+		$renderer->expects(self::once())
+			->method('render')
+			->with('/tmp/document.pdf', [2], '/tmp/ocr-work')
+			->willReturn([]);
+
+		$service = new TesseractService(
+			$config,
+			$localFiles,
+			$this->createMock(OcrJobLimiter::class),
+			$inspector,
+			$renderer,
+			$this->createMock(ProcessPriorityService::class),
+			$this->createMock(LoggerInterface::class)
+		);
+
+		self::assertSame('', $this->invokePdfOcr($service, '/tmp/document.pdf'));
+	}
+
+
+	private function invokePdfOcr(TesseractService $service, string $path): mixed {
+		$method = new \ReflectionMethod($service, 'ocrPdfFromPath');
+
+		return $method->invoke($service, $path);
+	}
 }

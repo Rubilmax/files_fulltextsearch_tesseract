@@ -10,6 +10,7 @@ namespace OCA\Files_FullTextSearch_Tesseract\Settings;
 
 
 use OCA\Files_FullTextSearch_Tesseract\AppInfo\Application;
+use OCA\Files_FullTextSearch_Tesseract\Service\ConfigService;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\Settings\ISettings;
 
@@ -21,11 +22,16 @@ use OCP\Settings\ISettings;
  */
 class Admin implements ISettings {
 
+	public function __construct(private ConfigService $configService) {
+	}
+
 	/**
 	 * @return TemplateResponse<200, array<string, mixed>>
 	 */
 	public function getForm(): TemplateResponse {
-		return new TemplateResponse(Application::APP_ID, 'settings.admin', []);
+		return new TemplateResponse(Application::APP_ID, 'settings.admin', [
+			'settings' => $this->configService->getConfig(),
+		]);
 	}
 
 
