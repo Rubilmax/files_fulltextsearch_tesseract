@@ -9,18 +9,15 @@ declare(strict_types=1);
 namespace OCA\Files_FullTextSearch_Tesseract\Service;
 
 
-use Exception;
-use OC\Files\View;
 use OCP\EventDispatcher\GenericEvent;
 use OCP\Files\File;
-use OCP\Files\Node;
-use OCP\Files\NotFoundException;
 use OCP\Files_FullTextSearch\Model\AFilesDocument;
 use OCP\FullTextSearch\Model\IIndexDocument;
 use OCP\FullTextSearch\Model\ISearchRequest;
 use Psr\Log\LoggerInterface;
 use Spatie\PdfToImage\Exceptions\PageDoesNotExist;
 use Spatie\PdfToImage\Pdf;
+use thiagoalessio\TesseractOCR\Option;
 use thiagoalessio\TesseractOCR\TesseractOCR;
 use Throwable;
 
@@ -34,6 +31,11 @@ class TesseractService {
 
 	public function __construct(
 		private ConfigService $configService,
+		private LocalFileService $localFileService,
+		private OcrJobLimiter $ocrJobLimiter,
+		private PdfContentInspector $pdfContentInspector,
+		private PdfPageRenderer $pdfPageRenderer,
+		private ProcessPriorityService $processPriorityService,
 		private LoggerInterface $logger
 	) {
 	}
@@ -46,6 +48,8 @@ class TesseractService {
 	 * @return bool
 	 */
 	public function parsedMimeType(string $mimeType, string $extension): bool {
+		$mimeType = strtolower(trim(explode(';', $mimeType, 2)[0]));
+		$extension = strtolower($extension);
 		$ocrMimes = [
 			'image/png',
 			'image/jpeg',
@@ -54,10 +58,8 @@ class TesseractService {
 			'application/pdf'
 		];
 
-		foreach ($ocrMimes as $mime) {
-			if (strpos($mimeType, $mime) === 0) {
-				return true;
-			}
+		if (in_array($mimeType, $ocrMimes, true)) {
+			return true;
 		}
 
 		if ($mimeType === 'application/octet-stream') {
@@ -72,15 +74,15 @@ class TesseractService {
 	 * @param GenericEvent $e
 	 */
 	public function onFileIndexing(GenericEvent $e): void {
-		/** @var Node $file */
 		$file = $e->getArgument('file');
-
 		if (!$file instanceof File) {
 			return;
 		}
 
-		/** @var \OCP\Files_FullTextSearch\Model\AFilesDocument $document */
 		$document = $e->getArgument('document');
+		if (!$document instanceof AFilesDocument || !$document instanceof IIndexDocument) {
+			return;
+		}
 
 		$this->extractContentUsingTesseractOCR($document, $file);
 	}
@@ -89,20 +91,26 @@ class TesseractService {
 	/**
 	 * @param GenericEvent $e
 	 */
-	public function onSearchRequest(GenericEvent $e) {
-		/** @var ISearchRequest $file */
+	public function onSearchRequest(GenericEvent $e): void {
 		$request = $e->getArgument('request');
+		if (!$request instanceof ISearchRequest) {
+			return;
+		}
+
 		$request->addPart('ocr');
 	}
 
 
 	/**
-	 * @param AFilesDocument $document
+	 * @param AFilesDocument&IIndexDocument $document
 	 * @param File $file
 	 */
-	private function extractContentUsingTesseractOCR(AFilesDocument &$document, File $file): void {
+	private function extractContentUsingTesseractOCR(
+		AFilesDocument&IIndexDocument $document,
+		File $file
+	): void {
 		try {
-			if ($this->configService->getAppValue(ConfigService::TESSERACT_ENABLED) !== '1') {
+			if (!$this->configService->isEnabled()) {
 				return;
 			}
 
@@ -122,15 +130,21 @@ class TesseractService {
 				]
 			);
 
-			// TODO: How to set options so that the index can be reset if admin settings are changed
-			//	$this->configService->setDocumentIndexOption($document, ConfigService::FILES_OCR);
-
 			if ($this->ocrPdf($document, $file)) {
 				return;
 			}
 
 			$content = $this->ocrFile($file);
 		} catch (Throwable $e) {
+			$this->logger->notice(
+				'Failed to extract content using Tesseract OCR',
+				[
+					'exception' => $e,
+					'documentId' => $document->getId(),
+					'path' => $document->getPath()
+				]
+			);
+
 			return;
 		}
 
@@ -142,17 +156,14 @@ class TesseractService {
 	 * @param File $file
 	 *
 	 * @return string
-	 * @throws NotFoundException
 	 */
 	private function ocrFile(File $file): string {
-		try {
-			$path = $this->getAbsolutePath($file);
-		} catch (Exception $e) {
-			$this->logger->notice('issue during ocrFile()', ['exception' => $e]);
-			throw new NotFoundException();
-		}
-
-		return $this->ocrFileFromPath($path);
+		return $this->ocrJobLimiter->run(function () use ($file): string {
+			return $this->localFileService->runWithLocalFile(
+				$file,
+				fn (string $path): string => $this->ocrFileFromPath($path)
+			);
+		});
 	}
 
 
@@ -164,25 +175,25 @@ class TesseractService {
 	private function ocrFileFromPath(string $path): string {
 		$this->logger->debug('generating the TesseractOCR wrapper', ['path' => $path]);
 
-		$ocr = new TesseractOCR($path);
-		$ocr->psm($this->configService->getAppValue(ConfigService::TESSERACT_PSM));
-		$lang = explode(',', $this->configService->getAppValue(ConfigService::TESSERACT_LANG));
-		call_user_func_array([$ocr, 'lang'], array_map('trim', $lang));
+		$ocr = new TesseractOCR(
+			$path,
+			new PrioritizedTesseractCommand($this->processPriorityService)
+		);
+		$ocr->threadLimit($this->configService->getEffectiveThreadLimit());
+		$languages = $this->configService->getLanguages();
+		$ocr->command->options[] = Option::psm($this->configService->getPageSegmentationMode());
+		$ocr->command->options[] = static fn (string $_version): string => '-l ' . implode('+', $languages);
 		$this->logger->debug('running the OCR command', ['command' => $ocr->command]);
-
-//		if ($this->configService->getLogLevel() > 0) {
-//			$ocr->command .= ' 2> /dev/null';
-//		}
 
 		try {
 			$result = $ocr->run();
 			$this->logger->debug('OCR command ran smoothly');
-		} catch (Exception $e) {
+		} catch (Throwable $e) {
 			$this->logger->notice('failed to OCR', [
 				'exception' => $e,
 				'path' => $path,
 				'cmd' => $ocr->command,
-				'lang' => $lang
+				'lang' => $languages
 			]);
 			$result = '';
 		}
@@ -192,60 +203,32 @@ class TesseractService {
 
 
 	/**
-	 * @param AFilesDocument $document
+	 * @param AFilesDocument&IIndexDocument $document
 	 * @param File $file
 	 *
 	 * @return bool
-	 * @throws NotFoundException
 	 */
-	private function ocrPdf(AFilesDocument $document, File $file): bool {
-		if ($document->getMimetype() !== 'application/pdf') {
+	private function ocrPdf(AFilesDocument&IIndexDocument $document, File $file): bool {
+		if (!$this->isPdf($document)) {
 			return false;
 		}
 
-		if ($this->configService->getAppValue(ConfigService::TESSERACT_PDF) !== '1') {
+		if (!$this->configService->isPdfEnabled()) {
 			return true;
 		}
 
 		$this->logger->debug('looks like we\'re working on a PDF file');
 
 		try {
-			$path = $this->getAbsolutePath($file);
-			$this->logger->debug('Absolute path', ['path' => $path]);
-			$pdf = new Pdf($path);
-		} catch (Exception $e) {
+			$content = $this->ocrJobLimiter->run(function () use ($file): string {
+				return $this->localFileService->runWithLocalFile(
+					$file,
+					fn (string $path): string => $this->ocrPdfFromPath($path)
+				);
+			});
+		} catch (Throwable $e) {
 			$this->logger->notice('failed to ocrPdf', ['exception' => $e, 'document' => $document]);
-			throw new NotFoundException();
-		}
-
-		$content = '';
-		$pages = $pdf->getNumberOfPages();
-		$this->logger->debug('PDF contains ' . $pages . ' page(s)');
-
-		$limit = (int)$this->configService->getAppValue(ConfigService::TESSERACT_PDF_LIMIT);
-		$pages = ($limit > 0 && $pages > $limit) ? $limit : $pages;
-		$this->logger->debug('App will now ocr ' . $pages . ' page(s)');
-
-
-		for ($i = 1; $i <= $pages; $i++) {
-			$this->logger->debug('Creating a temp image file for page #' . $i);
-
-			$tmpFile = tmpfile();
-			$tmpPath = stream_get_meta_data($tmpFile)['uri'];
-			$this->logger->debug('temp image file: ' . $tmpPath . ' for page #' . $i);
-
-			try {
-				$this->logger->debug('opening the PDF at the page #' . $i);
-				$pdf->setPage($i);
-
-				$this->logger->debug('saving the current page as image', ['tmpPath' => $tmpPath]);
-				$pdf->saveImage($tmpPath);
-
-				$content .= $this->ocrFileFromPath($tmpPath);
-			} catch (PageDoesNotExist $e) {
-			}
-
-			fclose($tmpFile);
+			throw $e;
 		}
 
 		$this->logger->debug('Saving the data into the IndexDocument');
@@ -256,32 +239,274 @@ class TesseractService {
 
 
 	/**
+	 * @param string $path
+	 *
+	 * @return string
+	 */
+	private function ocrPdfFromPath(string $path): string {
+		$pages = $this->pdfContentInspector->getPageCount($path);
+		if ($pages === null) {
+			$pages = (new Pdf($path))->pageCount();
+		}
+		$this->logger->debug('PDF contains ' . $pages . ' page(s)');
+
+		$limit = $this->configService->getPdfPageLimit();
+		$pages = ($limit > 0 && $pages > $limit) ? $limit : $pages;
+		$this->logger->debug('App will now ocr ' . $pages . ' page(s)');
+		if ($pages < 1) {
+			return '';
+		}
+
+		$textByPage = $this->pdfContentInspector->extractTextByPage($path, $pages);
+		$skipPagesWithText = $this->configService->shouldSkipPdfText();
+		if ($skipPagesWithText && $this->allPagesHaveUsefulText($textByPage, $pages)) {
+			$this->logger->debug('Skipping PDF image inspection and OCR; every page has useful text');
+
+			return $this->combinePdfContent($textByPage, [], $pages);
+		}
+
+		$ocrCandidatePages = $this->pdfContentInspector->findOcrCandidatePages($path, $pages);
+		$pagesToOcr = [];
+
+		for ($i = 1; $i <= $pages; $i++) {
+			$pageText = $textByPage[$i] ?? '';
+
+			if ($ocrCandidatePages !== null && !isset($ocrCandidatePages[$i])) {
+				$this->logger->debug(
+					'Skipping OCR for PDF page without a meaningful raster image',
+					['page' => $i]
+				);
+				continue;
+			}
+
+			if ($skipPagesWithText && $this->pdfContentInspector->hasUsefulText($pageText)) {
+				$this->logger->debug(
+					'Skipping OCR for PDF page with an existing text layer',
+					['page' => $i]
+				);
+				continue;
+			}
+
+			$pagesToOcr[] = $i;
+		}
+
+		if ($pagesToOcr === []) {
+			return $this->combinePdfContent($textByPage, [], $pages);
+		}
+
+		return $this->localFileService->runWithTemporaryFolder(
+			function (string $temporaryFolder) use ($path, $pages, $pagesToOcr, $textByPage): string {
+				$renderedPages = $this->pdfPageRenderer->render(
+					$path,
+					$pagesToOcr,
+					$temporaryFolder
+				);
+				if ($renderedPages === null) {
+					$this->logger->debug('Falling back to Imagick PDF page rendering');
+					$renderedPages = $this->renderPdfPagesWithImagick(
+						$path,
+						$pagesToOcr,
+						$temporaryFolder
+					);
+				}
+
+				$ocrContent = $this->ocrFilesFromPaths(
+					array_values($renderedPages),
+					$temporaryFolder
+				);
+				$ocrByPage = $this->splitOcrContentByPage(
+					$ocrContent,
+					array_keys($renderedPages)
+				);
+
+				return $this->combinePdfContent($textByPage, $ocrByPage, $pages);
+			}
+		);
+	}
+
+
+	/**
+	 * @param list<int> $pages
+	 *
+	 * @return array<int, string>
+	 */
+	private function renderPdfPagesWithImagick(
+		string $path,
+		array $pages,
+		string $outputDirectory
+	): array {
+		$previousThreadLimit = $this->setImagickThreadLimit();
+		try {
+			$pdf = new Pdf($path);
+			$renderedPages = [];
+			foreach ($pages as $page) {
+				$tmpPath = $outputDirectory . DIRECTORY_SEPARATOR . 'page-' . $page . '.jpg';
+				try {
+					$pdf->selectPage($page);
+					$pdf->save($tmpPath);
+					if (is_file($tmpPath)) {
+						$renderedPages[$page] = $tmpPath;
+					}
+				} catch (PageDoesNotExist $e) {
+					$this->logger->notice('PDF page does not exist', ['exception' => $e, 'page' => $page]);
+				} catch (Throwable $e) {
+					$this->logger->notice('Failed to render PDF page', ['exception' => $e, 'page' => $page]);
+				}
+			}
+
+			return $renderedPages;
+		} finally {
+			$this->restoreImagickThreadLimit($previousThreadLimit);
+		}
+	}
+
+
+	private function setImagickThreadLimit(): ?int {
+		try {
+			$previousLimit = \Imagick::getResourceLimit(\Imagick::RESOURCETYPE_THREAD);
+			\Imagick::setResourceLimit(
+				\Imagick::RESOURCETYPE_THREAD,
+				$this->configService->getEffectiveThreadLimit()
+			);
+
+			return $previousLimit;
+		} catch (Throwable $e) {
+			$this->logger->debug('Could not apply the OCR thread limit to Imagick', ['exception' => $e]);
+
+			return null;
+		}
+	}
+
+
+	private function restoreImagickThreadLimit(?int $previousLimit): void {
+		if ($previousLimit === null) {
+			return;
+		}
+
+		try {
+			\Imagick::setResourceLimit(\Imagick::RESOURCETYPE_THREAD, $previousLimit);
+		} catch (Throwable $e) {
+			$this->logger->debug('Could not restore the Imagick thread limit', ['exception' => $e]);
+		}
+	}
+
+
+	/**
+	 * @param list<string> $paths
+	 */
+	private function ocrFilesFromPaths(array $paths, string $temporaryFolder): string {
+		if ($paths === []) {
+			return '';
+		}
+		if (count($paths) === 1) {
+			return $this->ocrFileFromPath($paths[0]);
+		}
+
+		$listPath = $temporaryFolder . DIRECTORY_SEPARATOR . 'pages.txt';
+		if (file_put_contents($listPath, implode(PHP_EOL, $paths) . PHP_EOL) === false) {
+			$this->logger->notice('Failed to create the Tesseract PDF page list');
+
+			return '';
+		}
+
+		return $this->ocrFileFromPath($listPath);
+	}
+
+
+	/**
+	 * @param array<int, string>|null $textByPage
+	 */
+	private function allPagesHaveUsefulText(?array $textByPage, int $pages): bool {
+		if ($textByPage === null) {
+			return false;
+		}
+
+		for ($page = 1; $page <= $pages; $page++) {
+			if (!$this->pdfContentInspector->hasUsefulText($textByPage[$page] ?? '')) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+
+	/**
+	 * @param list<int> $pages
+	 *
+	 * @return array<int, string>
+	 */
+	private function splitOcrContentByPage(string $content, array $pages): array {
+		if ($pages === []) {
+			return [];
+		}
+
+		$pageContent = explode("\f", $content);
+		if (count($pageContent) !== count($pages)) {
+			$this->logger->debug(
+				'Tesseract returned an unexpected number of PDF page results',
+				['expected' => count($pages), 'actual' => count($pageContent)]
+			);
+
+			return [$pages[0] => trim($content)];
+		}
+
+		$result = [];
+		foreach ($pages as $index => $page) {
+			$result[$page] = trim($pageContent[$index]);
+		}
+
+		return $result;
+	}
+
+
+	/**
+	 * @param array<int, string>|null $textByPage
+	 * @param array<int, string> $ocrByPage
+	 */
+	private function combinePdfContent(?array $textByPage, array $ocrByPage, int $pages): string {
+		$content = [];
+		for ($page = 1; $page <= $pages; $page++) {
+			$pageText = trim($textByPage[$page] ?? '');
+			if ($pageText !== '') {
+				$content[] = $pageText;
+			}
+
+			$ocrText = trim($ocrByPage[$page] ?? '');
+			if ($ocrText !== '') {
+				$content[] = $ocrText;
+			}
+		}
+
+		return implode("\n", $content);
+	}
+
+
+	/**
 	 * @param string $extension
 	 *
 	 * @return bool
 	 */
 	private function parsedExtension(string $extension): bool {
 		$ocrExtensions = [
-//					'djvu'
+			'png',
+			'jpg',
+			'jpeg',
+			'tif',
+			'tiff',
+			'djv',
+			'djvu',
+			'pdf',
 		];
 
-		if (in_array($extension, $ocrExtensions)) {
-			return true;
-		}
-
-		return false;
+		return in_array(strtolower($extension), $ocrExtensions, true);
 	}
 
 
-	/**
-	 * @param File $file
-	 *
-	 * @return string
-	 * @throws Exception
-	 */
-	private function getAbsolutePath(File $file): string {
-		$view = new View('');
+	private function isPdf(AFilesDocument $document): bool {
+		$mimeType = strtolower(trim(explode(';', $document->getMimetype(), 2)[0]));
 
-		return $view->getLocalFile($file->getPath());
+		return $mimeType === 'application/pdf'
+			|| strtolower(pathinfo($document->getPath(), PATHINFO_EXTENSION)) === 'pdf';
 	}
 }

@@ -9,12 +9,8 @@ declare(strict_types=1);
 namespace OCA\Files_FullTextSearch_Tesseract\Settings;
 
 
-use Exception;
 use OCA\Files_FullTextSearch_Tesseract\AppInfo\Application;
-use OCA\Files_FullTextSearch_Tesseract\Service\ConfigService;
 use OCP\AppFramework\Http\TemplateResponse;
-use OCP\IL10N;
-use OCP\IURLGenerator;
 use OCP\Settings\ISettings;
 
 
@@ -25,35 +21,11 @@ use OCP\Settings\ISettings;
  */
 class Admin implements ISettings {
 
-
-	/** @var IL10N */
-	private $l10n;
-
-	/** @var IURLGenerator */
-	private $urlGenerator;
-
-	/** @var ConfigService */
-	private $configService;
-
-
 	/**
-	 * @param IL10N $l10n
-	 * @param IURLGenerator $urlGenerator
-	 * @param ConfigService $configService
-	 */
-	public function __construct(IL10N $l10n, IURLGenerator $urlGenerator, ConfigService $configService) {
-		$this->l10n = $l10n;
-		$this->urlGenerator = $urlGenerator;
-		$this->configService = $configService;
-	}
-
-
-	/**
-	 * @return TemplateResponse
-	 * @throws Exception
+	 * @return TemplateResponse<200, array<string, mixed>>
 	 */
 	public function getForm(): TemplateResponse {
-		return new TemplateResponse(Application::APP_NAME, 'settings.admin', []);
+		return new TemplateResponse(Application::APP_ID, 'settings.admin', []);
 	}
 
 
@@ -77,4 +49,3 @@ class Admin implements ISettings {
 	}
 
 }
-

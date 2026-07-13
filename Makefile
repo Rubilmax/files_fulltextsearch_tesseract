@@ -11,7 +11,7 @@ cert_dir=$(HOME)/.nextcloud/certificates
 github_account=nextcloud
 release_account=nextcloud-releases
 branch=master
-version=27.0.0
+version=$(shell sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
 since_tag=
 
 all: appstore
@@ -64,7 +64,7 @@ github-upload:
 		--repo $(package_name) \
 		--tag $(version) \
 		--name "$(package_name)-$(version).tar.gz" \
-		--file $(build_dir)/$(package_name)-$(version).tar.gz
+		--file $(build_dir)/$(package_name).tar.gz
 
 
 clean:
@@ -73,8 +73,8 @@ clean:
 
 # composer packages
 composer:
-	composer install --prefer-dist
-	composer upgrade --prefer-dist
+	composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader \
+		--ignore-platform-req=ext-imagick
 
 appstore: clean composer
 	mkdir -p $(sign_dir)
@@ -86,10 +86,14 @@ appstore: clean composer
 	--exclude=/tests \
 	--exclude=.git \
 	--exclude=/.github \
+	--exclude=/.context \
+	--exclude=/.phpunit.cache \
 	--exclude=/l10n/l10n.pl \
 	--exclude=/CONTRIBUTING.md \
 	--exclude=/issue_template.md \
 	--exclude=/README.md \
+	--exclude=/phpstan.neon \
+	--exclude=/phpunit.xml \
 	--exclude=/composer.json \
 	--exclude=/testConfiguration.json \
 	--exclude=/composer.lock \
@@ -97,6 +101,7 @@ appstore: clean composer
 	--exclude=/.gitignore \
 	--exclude=/.scrutinizer.yml \
 	--exclude=/.travis.yml \
+	--exclude=/REUSE.toml \
 	--exclude=/Makefile \
 	./ $(sign_dir)/$(package_name)
 	tar -czf $(build_dir)/$(package_name).tar.gz \

@@ -21,20 +21,16 @@ use OCP\EventDispatcher\IEventListener;
  * Class FileCreated
  *
  * @package OCA\Circles\Listeners
+ * @implements IEventListener<GenericEvent>
  */
 class GenericListener implements IEventListener {
 
+	private const SUBJECT_PREFIX = 'Files_FullTextSearch.';
 
-	/** @var ConfigService */
-	private $configService;
-
-	/** @var TesseractService */
-	private $tesseractService;
-
-
-	public function __construct(ConfigService $configService, TesseractService $tesseractService) {
-		$this->configService = $configService;
-		$this->tesseractService = $tesseractService;
+	public function __construct(
+		private ConfigService $configService,
+		private TesseractService $tesseractService
+	) {
 	}
 
 
@@ -47,11 +43,11 @@ class GenericListener implements IEventListener {
 		}
 
 		$subject = $event->getSubject();
-		if (substr($subject, 0, 21) !== 'Files_FullTextSearch.') {
+		if (!is_string($subject) || !str_starts_with($subject, self::SUBJECT_PREFIX)) {
 			return;
 		}
 
-		$action = substr($subject, 21);
+		$action = substr($subject, strlen(self::SUBJECT_PREFIX));
 
 		switch ($action) {
 			case 'onGetConfig':

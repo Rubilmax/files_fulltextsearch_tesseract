@@ -1,0 +1,41 @@
+<?php return array(
+    'root' => array(
+        'name' => 'nextcloud/files_fulltextsearch_tesseract-ocr',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => 'ad0a97809614bcd383006d9d514a0eab2644e2a5',
+        'type' => 'library',
+        'install_path' => __DIR__ . '/../../',
+        'aliases' => array(),
+        'dev' => false,
+    ),
+    'versions' => array(
+        'nextcloud/files_fulltextsearch_tesseract-ocr' => array(
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => 'ad0a97809614bcd383006d9d514a0eab2644e2a5',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'spatie/pdf-to-image' => array(
+            'pretty_version' => '3.3.0',
+            'version' => '3.3.0.0',
+            'reference' => '4a429b291710eae73114d1b983e655be2cbfc294',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../spatie/pdf-to-image',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'thiagoalessio/tesseract_ocr' => array(
+            'pretty_version' => '2.13.0',
+            'version' => '2.13.0.0',
+            'reference' => '232a8cb9d571992f9bd1e263f2f6909cf6c173a1',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../thiagoalessio/tesseract_ocr',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+    ),
+);

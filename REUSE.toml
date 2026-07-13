@@ -10,3 +10,21 @@ path = ["composer.json", "composer.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2018 Nextcloud GmbH and Nextcloud contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = ["vendor/autoload.php", "vendor/composer/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Copyright (c) Nils Adermann, Jordi Boggiano"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "vendor/spatie/pdf-to-image/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Copyright (c) Spatie bvba <info@spatie.be>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "vendor/thiagoalessio/tesseract_ocr/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Copyright (c) 2012-2021 Thiago Alessio Pereira"
+SPDX-License-Identifier = "MIT"

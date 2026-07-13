@@ -2,7 +2,7 @@
   "name": "nextcloud/files_fulltextsearch_tesseract-ocr",
   "description": "Files - Fulltextsearch - Tesseract OCR",
   "minimum-stability": "stable",
-  "license": "agpl",
+  "license": "AGPL-3.0-or-later",
   "config": {
     "optimize-autoloader": true,
     "classmap-authoritative": true,
@@ -22,8 +22,24 @@
       "OCA\\Files_FullTextSearch_Tesseract\\": "lib/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "OCA\\Files_FullTextSearch_Tesseract\\Tests\\": "tests/",
+      "OCP\\": "vendor/nextcloud/ocp/OCP/"
+    }
+  },
   "require": {
-    "thiagoalessio/tesseract_ocr": "2.13.0",
-    "spatie/pdf-to-image": "3.1.0"
+    "php": ">=8.2",
+    "spatie/pdf-to-image": "^3.3",
+    "thiagoalessio/tesseract_ocr": "^2.13"
+  },
+  "require-dev": {
+    "nextcloud/ocp": "^34.0",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^11.5"
+  },
+  "scripts": {
+    "analyse": "phpstan analyse --configuration phpstan.neon",
+    "test": "phpunit --configuration phpunit.xml"
   }
 }

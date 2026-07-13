@@ -7,19 +7,19 @@
 	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>files_fulltextsearch_tesseract</id>
 	<name>Full text search - Files - Tesseract OCR</name>
-	<summary>OCR Some format</summary>
+	<summary>Extract searchable text from images and PDFs with Tesseract OCR</summary>
 	<description><![CDATA[
 
-Extension to the _Full text search - Files_ app to OCR your documents before index.
+Extension to the _Full text search - Files_ app that extracts searchable text from images and PDFs before indexing.
 
-This is a simple app that use [Tesseract OCR for PHP](https://github.com/thiagoalessio/tesseract-ocr-for-php),
+This app uses [Tesseract OCR for PHP](https://github.com/thiagoalessio/tesseract-ocr-for-php),
 which is a wrapper for the command line program [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
 
 Tesseract must be installed locally, and configured.
 	]]>
 	</description>
-	<version>31.0.0</version>
-	<licence>agpl</licence>
+	<version>34.0.0</version>
+	<licence>AGPL-3.0-or-later</licence>
 	<author>Maxence Lange</author>
 	<namespace>Files_FullTextSearch_Tesseract</namespace>
 	<documentation>
@@ -31,7 +31,10 @@ Tesseract must be installed locally, and configured.
 	<repository>https://github.com/nextcloud/files_fulltextsearch_tesseract.git</repository>
 	<screenshot>https://raw.githubusercontent.com/nextcloud/fulltextsearch/master/screenshots/0.3.0.png</screenshot>
 	<dependencies>
-		<nextcloud min-version="31" max-version="32"/>
+		<php min-version="8.2"/>
+		<command>tesseract</command>
+		<lib>imagick</lib>
+		<nextcloud min-version="31" max-version="999"/>
 	</dependencies>
 
 	<settings>

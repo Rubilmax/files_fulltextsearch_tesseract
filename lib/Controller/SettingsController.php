@@ -23,26 +23,19 @@ use OCP\IRequest;
  * @package OCA\Files_FullTextSearch_Tesseract\Controller
  */
 class SettingsController extends Controller {
-
-
-	/** @var ConfigService */
-	private $configService;
-
-
 	/**
 	 * SettingsController constructor.
 	 *
 	 * @param IRequest $request
 	 * @param ConfigService $configService
 	 */
-	public function __construct(IRequest $request, ConfigService $configService) {
-		parent::__construct(Application::APP_NAME, $request);
-		$this->configService = $configService;
+	public function __construct(IRequest $request, private ConfigService $configService) {
+		parent::__construct(Application::APP_ID, $request);
 	}
 
 
 	/**
-	 * @return DataResponse
+	 * @return DataResponse<200, array<string, string>, array<string, mixed>>
 	 */
 	public function getSettingsAdmin(): DataResponse {
 		$data = $this->configService->getConfig();
@@ -52,9 +45,8 @@ class SettingsController extends Controller {
 
 
 	/**
-	 * @param $data
-	 *
-	 * @return DataResponse
+	 * @param array<string, mixed> $data
+	 * @return DataResponse<200, array<string, string>, array<string, mixed>>
 	 */
 	public function setSettingsAdmin(array $data): DataResponse {
 		$this->configService->setConfig($data);
@@ -63,4 +55,3 @@ class SettingsController extends Controller {
 	}
 
 }
-
