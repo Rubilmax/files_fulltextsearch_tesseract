@@ -4,6 +4,22 @@
 -->
 # Changelog
 
+## 34.0.3
+
+### Added
+
+- Register all displayed app strings for translation through Nextcloud's Transifex workflow.
+
+### Changed
+
+- Replace the legacy administration template and custom AJAX scripts with Nextcloud's native
+  declarative settings form.
+- Use standard Nextcloud 34 controls and automatic persistence for all OCR settings.
+
+### Fixed
+
+- Keep server-side validation and normalization when native autosave updates a setting.
+
 ## 34.0.2
 
 ### Fixed

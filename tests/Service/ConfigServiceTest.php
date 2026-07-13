@@ -59,6 +59,8 @@ class ConfigServiceTest extends TestCase {
 		self::assertGreaterThanOrEqual(1, $this->service->getCpuBudget());
 		self::assertGreaterThanOrEqual(1, $this->service->getParallelJobs());
 		self::assertSame(1, $this->service->getThreadLimit());
+		self::assertSame('1', $this->service->getDefaultValue(ConfigService::TESSERACT_ENABLED));
+		self::assertSame('', $this->service->getDefaultValue('unknown'));
 		self::assertLessThanOrEqual(
 			$this->service->getCpuBudget(),
 			$this->service->getEffectiveParallelJobs() * $this->service->getEffectiveThreadLimit()

@@ -8,7 +8,6 @@ $baseDir = dirname($vendorDir);
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'OCA\\Files_FullTextSearch_Tesseract\\AppInfo\\Application' => $baseDir . '/lib/AppInfo/Application.php',
-    'OCA\\Files_FullTextSearch_Tesseract\\Controller\\SettingsController' => $baseDir . '/lib/Controller/SettingsController.php',
     'OCA\\Files_FullTextSearch_Tesseract\\Listeners\\GenericListener' => $baseDir . '/lib/Listeners/GenericListener.php',
     'OCA\\Files_FullTextSearch_Tesseract\\Service\\ConfigService' => $baseDir . '/lib/Service/ConfigService.php',
     'OCA\\Files_FullTextSearch_Tesseract\\Service\\ExternalCommandRunner' => $baseDir . '/lib/Service/ExternalCommandRunner.php',

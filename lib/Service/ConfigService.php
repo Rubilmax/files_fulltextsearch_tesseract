@@ -82,6 +82,11 @@ class ConfigService {
 	}
 
 
+	public function getDefaultValue(string $key): string {
+		return $this->defaults[$key] ?? '';
+	}
+
+
 	/**
 	 * @param array<string, mixed> $values
 	 */

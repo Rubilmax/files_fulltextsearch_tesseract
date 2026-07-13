@@ -10,6 +10,7 @@ namespace OCA\Files_FullTextSearch_Tesseract\AppInfo;
 
 
 use OCA\Files_FullTextSearch_Tesseract\Listeners\GenericListener;
+use OCA\Files_FullTextSearch_Tesseract\Settings\Admin;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -42,6 +43,7 @@ class Application extends App implements IBootstrap {
 	 */
 	public function register(IRegistrationContext $context): void {
 		$context->registerEventListener(GenericEvent::class, GenericListener::class);
+		$context->registerDeclarativeSettings(Admin::class);
 	}
 
 

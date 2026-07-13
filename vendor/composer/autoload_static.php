@@ -39,7 +39,6 @@ class ComposerStaticInitFiles_FullTextSearch_Tesseract
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'OCA\\Files_FullTextSearch_Tesseract\\AppInfo\\Application' => __DIR__ . '/../..' . '/lib/AppInfo/Application.php',
-        'OCA\\Files_FullTextSearch_Tesseract\\Controller\\SettingsController' => __DIR__ . '/../..' . '/lib/Controller/SettingsController.php',
         'OCA\\Files_FullTextSearch_Tesseract\\Listeners\\GenericListener' => __DIR__ . '/../..' . '/lib/Listeners/GenericListener.php',
         'OCA\\Files_FullTextSearch_Tesseract\\Service\\ConfigService' => __DIR__ . '/../..' . '/lib/Service/ConfigService.php',
         'OCA\\Files_FullTextSearch_Tesseract\\Service\\ExternalCommandRunner' => __DIR__ . '/../..' . '/lib/Service/ExternalCommandRunner.php',
