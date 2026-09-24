@@ -4,6 +4,12 @@
 -->
 # Changelog
 
+## 35.0.0
+
+### Changed
+
+- Validate Nextcloud 35 support against its public API and cap the declared compatibility range.
+
 ## 34.0.3
 
 ### Added

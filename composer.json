@@ -8,7 +8,7 @@
     "classmap-authoritative": true,
     "autoloader-suffix": "Files_FullTextSearch_Tesseract",
     "platform": {
-      "php": "8.2"
+      "php": "8.3"
     }
   },
   "authors": [
@@ -34,7 +34,7 @@
     "thiagoalessio/tesseract_ocr": "^2.13"
   },
   "require-dev": {
-    "nextcloud/ocp": "^34.0",
+    "nextcloud/ocp": "^35.0",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^11.5"
   },
