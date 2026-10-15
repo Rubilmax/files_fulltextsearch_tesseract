@@ -28,6 +28,7 @@ use Throwable;
  * @package OCA\Files_FullTextSearch_Tesseract\Service
  */
 class TesseractService {
+	private const OCR_TIMEOUT_SECONDS = 300;
 
 	public function __construct(
 		private ConfigService $configService,
@@ -145,7 +146,7 @@ class TesseractService {
 				]
 			);
 
-			return;
+			throw $e;
 		}
 
 		$document->setContent(base64_encode($content), IIndexDocument::ENCODED_BASE64);
@@ -186,7 +187,7 @@ class TesseractService {
 		$this->logger->debug('running the OCR command', ['command' => $ocr->command]);
 
 		try {
-			$result = $ocr->run();
+			$result = $ocr->run(self::OCR_TIMEOUT_SECONDS);
 			$this->logger->debug('OCR command ran smoothly');
 		} catch (Throwable $e) {
 			$this->logger->notice('failed to OCR', [
@@ -195,7 +196,7 @@ class TesseractService {
 				'cmd' => $ocr->command,
 				'lang' => $languages
 			]);
-			$result = '';
+			throw $e;
 		}
 
 		return $result;
