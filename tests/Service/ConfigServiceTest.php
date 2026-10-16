@@ -36,7 +36,11 @@ class ConfigServiceTest extends TestCase {
 			}
 		);
 
-		$this->service = new ConfigService($appConfig);
+		$this->service = $this->getMockBuilder(ConfigService::class)
+			->setConstructorArgs([$appConfig])
+			->onlyMethods(['getMaxCpuBudget'])
+			->getMock();
+		$this->service->method('getMaxCpuBudget')->willReturn(8);
 	}
 
 
@@ -85,7 +89,7 @@ class ConfigServiceTest extends TestCase {
 		self::assertSame(4, $this->service->getPageSegmentationMode());
 		self::assertSame(['eng', 'deu', 'script/Latin'], $this->service->getLanguages());
 		self::assertSame(100000, $this->service->getPdfPageLimit());
-		self::assertSame(256, $this->service->getCpuBudget());
+		self::assertSame(8, $this->service->getCpuBudget());
 		self::assertSame(256, $this->service->getParallelJobs());
 		self::assertSame(1, $this->service->getThreadLimit());
 	}
@@ -118,5 +122,32 @@ class ConfigServiceTest extends TestCase {
 		self::assertSame(['eng'], $this->service->getLanguages());
 		self::assertSame(4, $this->service->getPageSegmentationMode());
 		self::assertSame('eng', $this->service->getConfig()[ConfigService::TESSERACT_LANG]);
+	}
+
+
+	public function testLegacyShortLanguageCodeIsNotTranslated(): void {
+		$this->values[ConfigService::TESSERACT_LANG] = 'fr';
+
+		self::assertSame(['fr'], $this->service->getLanguages());
+		self::assertSame('fr', $this->service->getConfig()[ConfigService::TESSERACT_LANG]);
+		self::assertSame('fr', $this->values[ConfigService::TESSERACT_LANG]);
+	}
+
+
+	public function testCpuBudgetUsesServerLimitForLegacyAndNewValues(): void {
+		$this->values[ConfigService::TESSERACT_CPU_BUDGET] = '256';
+		self::assertSame(8, $this->service->getCpuBudget());
+		self::assertSame('8', $this->service->getConfig()[ConfigService::TESSERACT_CPU_BUDGET]);
+
+		$this->service->setConfig([
+			ConfigService::TESSERACT_CPU_BUDGET => '999',
+			ConfigService::TESSERACT_PARALLEL_JOBS => '256',
+			ConfigService::TESSERACT_THREADS => '256',
+		]);
+		self::assertSame('8', $this->values[ConfigService::TESSERACT_CPU_BUDGET]);
+		self::assertLessThanOrEqual(8, $this->service->getEffectiveThreadLimit() * $this->service->getEffectiveParallelJobs());
+
+		$this->service->setConfig([ConfigService::TESSERACT_CPU_BUDGET => '2']);
+		self::assertSame(2, $this->service->getCpuBudget());
 	}
 }

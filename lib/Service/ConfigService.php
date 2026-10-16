@@ -153,9 +153,14 @@ class ConfigService {
 		return $this->normalizeInteger(
 			$this->getAppValue(self::TESSERACT_CPU_BUDGET),
 			1,
-			self::MAX_CPU_BUDGET,
+			$this->getMaxCpuBudget(),
 			$this->getDefaultCpuBudget()
 		);
+	}
+
+
+	public function getMaxCpuBudget(): int {
+		return max(1, min(self::MAX_CPU_BUDGET, $this->getCpuCount()));
 	}
 
 
@@ -227,7 +232,7 @@ class ConfigService {
 			self::TESSERACT_CPU_BUDGET => (string)$this->normalizeInteger(
 				$value,
 				1,
-				self::MAX_CPU_BUDGET,
+				$this->getMaxCpuBudget(),
 				$this->getDefaultCpuBudget()
 			),
 			self::TESSERACT_PARALLEL_JOBS => (string)$this->normalizeInteger(

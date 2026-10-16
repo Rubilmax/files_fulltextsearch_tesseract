@@ -91,6 +91,39 @@ class TesseractServiceTest extends TestCase {
 	}
 
 
+	public function testAvailableLanguagesUseInstalledModelsOnly(): void {
+		if (PHP_OS_FAMILY === 'Windows') {
+			self::markTestSkipped('This test uses a POSIX shell fixture.');
+		}
+		$directory = sys_get_temp_dir() . '/tesseract-models-' . bin2hex(random_bytes(8));
+		mkdir($directory);
+		file_put_contents($directory . '/tesseract', "#!/bin/sh\nprintf '%s\\n' 'List of available languages (5):' 'fra' 'eng' 'osd' 'script/Latin' 'bad language'\n");
+		chmod($directory . '/tesseract', 0700);
+		$previousPath = getenv('PATH');
+		putenv('PATH=' . $directory);
+		try {
+			$service = $this->createImageIndexingService($this->createMock(LocalFileService::class));
+			self::assertSame(['eng', 'fra', 'script/Latin'], $service->getAvailableLanguages());
+		} finally {
+			putenv($previousPath === false ? 'PATH' : 'PATH=' . $previousPath);
+			unlink($directory . '/tesseract');
+			rmdir($directory);
+		}
+	}
+
+
+	public function testMissingTesseractHasNoLanguageChoices(): void {
+		$previousPath = getenv('PATH');
+		putenv('PATH=');
+		try {
+			$service = $this->createImageIndexingService($this->createMock(LocalFileService::class));
+			self::assertSame([], $service->getAvailableLanguages());
+		} finally {
+			putenv($previousPath === false ? 'PATH' : 'PATH=' . $previousPath);
+		}
+	}
+
+
 	/** @return iterable<string, array{string}> */
 	public static function imageContent(): iterable {
 		yield 'recognized text' => ['Searchable scan content'];

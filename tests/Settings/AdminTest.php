@@ -10,10 +10,12 @@ namespace OCA\Files_FullTextSearch_Tesseract\Tests\Settings;
 
 
 use OCA\Files_FullTextSearch_Tesseract\Service\ConfigService;
+use OCA\Files_FullTextSearch_Tesseract\Service\TesseractService;
 use OCA\Files_FullTextSearch_Tesseract\Settings\Admin;
 use OCP\IL10N;
 use OCP\IUser;
 use OCP\Settings\DeclarativeSettingsTypes;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 
@@ -34,8 +36,10 @@ class AdminTest extends TestCase {
 			]);
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(static fn (string $text): string => $text);
+		$tesseract = $this->createMock(TesseractService::class);
+		$tesseract->method('getAvailableLanguages')->willReturn(['eng', 'fra']);
 
-		$schema = (new Admin($l, $configService))->getSchema();
+		$schema = (new Admin($l, $configService, $tesseract))->getSchema();
 
 		self::assertSame('tesseract', $schema['id']);
 		self::assertSame(51, $schema['priority']);
@@ -57,8 +61,9 @@ class AdminTest extends TestCase {
 		self::assertSame(1, $schema['fields'][0]['default']);
 		self::assertSame(DeclarativeSettingsTypes::NUMBER, $schema['fields'][1]['type']);
 		self::assertSame(4, $schema['fields'][1]['default']);
-		self::assertSame(DeclarativeSettingsTypes::TEXT, $schema['fields'][2]['type']);
-		self::assertSame('eng', $schema['fields'][2]['default']);
+		self::assertSame(DeclarativeSettingsTypes::MULTI_SELECT, $schema['fields'][2]['type']);
+		self::assertSame('["eng"]', $schema['fields'][2]['default']);
+		self::assertSame(['eng', 'fra'], $schema['fields'][2]['options']);
 	}
 
 
@@ -68,7 +73,7 @@ class AdminTest extends TestCase {
 			->method('getAppValue')
 			->with(ConfigService::TESSERACT_PSM)
 			->willReturn('4');
-		$admin = new Admin($this->createMock(IL10N::class), $configService);
+		$admin = new Admin($this->createMock(IL10N::class), $configService, $this->createMock(TesseractService::class));
 
 		$value = $admin->getValue(ConfigService::TESSERACT_PSM, $this->createMock(IUser::class));
 
@@ -81,8 +86,55 @@ class AdminTest extends TestCase {
 		$configService->expects(self::once())
 			->method('setConfig')
 			->with([ConfigService::TESSERACT_PSM => 99]);
-		$admin = new Admin($this->createMock(IL10N::class), $configService);
+		$admin = new Admin($this->createMock(IL10N::class), $configService, $this->createMock(TesseractService::class));
 
 		$admin->setValue(ConfigService::TESSERACT_PSM, 99, $this->createMock(IUser::class));
+	}
+
+
+	public function testUnavailableSavedLanguagesAreNotTranslatedOrSelected(): void {
+		$config = $this->createMock(ConfigService::class);
+		$config->method('getLanguages')->willReturn(['fr', 'eng']);
+		$config->expects(self::never())->method('setConfig');
+		$tesseract = $this->createMock(TesseractService::class);
+		$tesseract->method('getAvailableLanguages')->willReturn(['eng', 'fra']);
+		$admin = new Admin($this->createMock(IL10N::class), $config, $tesseract);
+
+		self::assertSame('["eng"]', $admin->getValue(ConfigService::TESSERACT_LANG, $this->createMock(IUser::class)));
+	}
+
+
+	public function testLanguageSelectionsKeepTheExistingStorageFormat(): void {
+		$config = $this->createMock(ConfigService::class);
+		$config->expects(self::once())->method('setConfig')->with([ConfigService::TESSERACT_LANG => 'fra,eng']);
+		$tesseract = $this->createMock(TesseractService::class);
+		$tesseract->method('getAvailableLanguages')->willReturn(['eng', 'fra']);
+		$admin = new Admin($this->createMock(IL10N::class), $config, $tesseract);
+
+		$admin->setValue(ConfigService::TESSERACT_LANG, '["fra","eng","fra"]', $this->createMock(IUser::class));
+	}
+
+
+	/** @return iterable<string, array{mixed}> */
+	public static function invalidSelections(): iterable {
+		yield 'free text' => ['fr'];
+		yield 'uninstalled language' => [['fr']];
+		yield 'empty selection' => [[]];
+		yield 'wrong value type' => [[1]];
+		yield 'JSON object instead of list' => ['{"language":"fra"}'];
+		yield 'uninstalled JSON language' => ['["fr"]'];
+	}
+
+
+	#[DataProvider('invalidSelections')]
+	public function testOnlyInstalledLanguageSelectionsCanBeSaved(mixed $value): void {
+		$config = $this->createMock(ConfigService::class);
+		$config->expects(self::never())->method('setConfig');
+		$tesseract = $this->createMock(TesseractService::class);
+		$tesseract->method('getAvailableLanguages')->willReturn(['eng', 'fra']);
+		$admin = new Admin($this->createMock(IL10N::class), $config, $tesseract);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$admin->setValue(ConfigService::TESSERACT_LANG, $value, $this->createMock(IUser::class));
 	}
 }

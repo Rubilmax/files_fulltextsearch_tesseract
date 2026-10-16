@@ -9,7 +9,9 @@ declare(strict_types=1);
 namespace OCA\Files_FullTextSearch_Tesseract\Settings;
 
 
+use InvalidArgumentException;
 use OCA\Files_FullTextSearch_Tesseract\Service\ConfigService;
+use OCA\Files_FullTextSearch_Tesseract\Service\TesseractService;
 use OCP\IL10N;
 use OCP\IUser;
 use OCP\Settings\DeclarativeSettingsTypes;
@@ -29,6 +31,7 @@ class Admin implements IDeclarativeSettingsFormWithHandlers {
 	public function __construct(
 		private IL10N $l,
 		private ConfigService $configService,
+		private TesseractService $tesseractService,
 	) {
 	}
 
@@ -37,6 +40,22 @@ class Admin implements IDeclarativeSettingsFormWithHandlers {
 	 * @return array<string, mixed>
 	 */
 	public function getSchema(): array {
+		$languages = $this->field(
+			ConfigService::TESSERACT_LANG,
+			$this->l->t('Languages'),
+			DeclarativeSettingsTypes::MULTI_SELECT,
+			$this->l->t('Select installed Tesseract language models. French is fra; English is eng.'),
+		);
+		$languages['options'] = $this->tesseractService->getAvailableLanguages();
+		if ($languages['options'] === []) {
+			$languages['description'] = $this->l->t('No Tesseract language models found. Install language data and check TESSDATA_PREFIX.');
+		} else {
+			$missing = array_diff($this->configService->getLanguages(), $languages['options']);
+			if ($missing !== []) {
+				$languages['description'] = $this->l->t('Saved models are not installed: %s. Choose installed language models.', [implode(', ', $missing)]);
+			}
+		}
+
 		return [
 			'id' => 'tesseract',
 			'priority' => 51,
@@ -57,17 +76,12 @@ class Admin implements IDeclarativeSettingsFormWithHandlers {
 					$this->l->t('Page segmentation method'),
 					DeclarativeSettingsTypes::NUMBER,
 				),
-				$this->field(
-					ConfigService::TESSERACT_LANG,
-					$this->l->t('Languages'),
-					DeclarativeSettingsTypes::TEXT,
-					$this->l->t('Comma-separated list of installed Tesseract languages.'),
-				),
+				$languages,
 				$this->field(
 					ConfigService::TESSERACT_CPU_BUDGET,
 					$this->l->t('OCR CPU budget'),
 					DeclarativeSettingsTypes::NUMBER,
-					$this->l->t('Maximum CPU threads shared by all OCR jobs; defaults to half of the available CPUs.'),
+					$this->l->t('Maximum CPU threads shared by all OCR jobs; capped at %s available CPUs.', [$this->configService->getMaxCpuBudget()]),
 				),
 				$this->field(
 					ConfigService::TESSERACT_PARALLEL_JOBS,
@@ -99,11 +113,32 @@ class Admin implements IDeclarativeSettingsFormWithHandlers {
 
 
 	public function getValue(string $fieldId, IUser $user): mixed {
+		if ($fieldId === ConfigService::TESSERACT_LANG) {
+			return json_encode(array_values(array_intersect(
+				$this->configService->getLanguages(),
+				$this->tesseractService->getAvailableLanguages()
+			)), JSON_THROW_ON_ERROR);
+		}
 		return $this->configService->getAppValue($fieldId);
 	}
 
 
 	public function setValue(string $fieldId, mixed $value, IUser $user): void {
+		if ($fieldId === ConfigService::TESSERACT_LANG) {
+			if (is_string($value)) {
+				$value = json_decode($value, true);
+			}
+			if (!is_array($value) || !array_is_list($value) || $value === []) {
+				throw new InvalidArgumentException('Select at least one installed Tesseract language.');
+			}
+			$available = $this->tesseractService->getAvailableLanguages();
+			foreach ($value as $language) {
+				if (!is_string($language) || !in_array($language, $available, true)) {
+					throw new InvalidArgumentException('Select only installed Tesseract languages.');
+				}
+			}
+			$value = implode(',', array_unique($value));
+		}
 		$this->configService->setConfig([$fieldId => $value]);
 	}
 
@@ -115,6 +150,8 @@ class Admin implements IDeclarativeSettingsFormWithHandlers {
 		$default = $this->configService->getDefaultValue($id);
 		if ($type === DeclarativeSettingsTypes::CHECKBOX || $type === DeclarativeSettingsTypes::NUMBER) {
 			$default = (int)$default;
+		} elseif ($type === DeclarativeSettingsTypes::MULTI_SELECT) {
+			$default = json_encode(explode(',', $default), JSON_THROW_ON_ERROR);
 		}
 
 		$field = [

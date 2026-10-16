@@ -42,6 +42,23 @@ class TesseractService {
 	}
 
 
+	/** @return list<string> */
+	public function getAvailableLanguages(): array {
+		try {
+			$languages = (new TesseractOCR())->availableLanguages();
+			return array_values(array_filter(
+				$languages,
+				static fn (string $language): bool => $language !== 'osd'
+					&& strlen($language) <= 64
+					&& preg_match('/^[A-Za-z0-9_.\/-]+$/D', $language) === 1
+			));
+		} catch (Throwable $e) {
+			$this->logger->notice('Unable to list installed Tesseract languages', ['exception' => $e]);
+			return [];
+		}
+	}
+
+
 	/**
 	 * @param string $mimeType
 	 * @param string $extension
