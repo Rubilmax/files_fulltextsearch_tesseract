@@ -12,8 +12,8 @@ This Nextcloud app extracts searchable text from images and image-bearing PDF pa
 
 ## Requirements
 
-- Nextcloud 31 or newer, including Nextcloud 34. The manifest uses a deliberately high compatibility
-  ceiling, so a new major is installable by default.
+- Nextcloud 31 or newer, including Nextcloud 35. The manifest bounds compatibility
+  to tested server majors.
 - PHP 8.2 or newer with the Imagick extension.
 - Tesseract available as `tesseract` in the web/cron user's `PATH`.
 - ImageMagick with PDF reading enabled and a PDF delegate such as Ghostscript for PDF OCR.

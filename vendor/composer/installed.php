@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'nextcloud/files_fulltextsearch_tesseract-ocr',
-        'pretty_version' => '34.0.3',
-        'version' => '34.0.3.0',
-        'reference' => '5034410b6baf2d568464c2762e2988e06d4ef3e1',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => '1f27f58af770252d63773687682dad75f91fc00b',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'nextcloud/files_fulltextsearch_tesseract-ocr' => array(
-            'pretty_version' => '34.0.3',
-            'version' => '34.0.3.0',
-            'reference' => '5034410b6baf2d568464c2762e2988e06d4ef3e1',
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => '1f27f58af770252d63773687682dad75f91fc00b',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
